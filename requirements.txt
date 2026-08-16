@@ -1,0 +1,5 @@
+mcp==1.13.1
+groq
+python-dotenv
+requests
+uvicorn[standard]
