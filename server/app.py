@@ -1,9 +1,8 @@
 import os
-
 from starlette.applications import Starlette
 from starlette.requests import Request
 from starlette.responses import JSONResponse
-from starlette.routing import Mount, Route
+from starlette.routing import Route, Mount
 
 from server.mcp_server import mcp
 
@@ -15,23 +14,18 @@ import server.tools.email
 
 async def health(request: Request):
     return JSONResponse(
-        {
-            "status": "ok",
-            "service": "MCP Assistant Server",
-        }
+        {"status": "ok", "service": "MCP Assistant Server"}
     )
 
 
-# Create the MCP application
+# Move these outside __main__
 mcp_app = mcp.streamable_http_app()
 
-
-# Create the Starlette application
 app = Starlette(
     routes=[
         Route("/health", health),
         Mount("/", app=mcp_app),
-    ]
+    ],
 )
 
 
@@ -45,5 +39,5 @@ if __name__ == "__main__":
         app,
         host=host,
         port=port,
-        log_level="debug",
+        log_level="info",
     )
