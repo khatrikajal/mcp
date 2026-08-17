@@ -2,20 +2,63 @@ from server.mcp_server import mcp
 from server.dependencies import email_service
 import json
 
+from server.mcp_server import mcp
+from server.dependencies import email_service
+
+
 @mcp.tool()
-def list_emails(limit: int = 10):
+def list_emails(limit: int = 5):
     """List the latest emails from the user's inbox."""
 
-    result = email_service.list_emails(limit=limit)
+    emails = email_service.list_emails(limit=limit)
 
     print("\n========== EMAIL TOOL RESULT ==========")
-    print(result)
+    print(emails)
     print("=======================================\n")
 
-    return json.dumps(
-        result,
-        indent=2)
+    return {
+        "count": len(emails),
+        "emails": emails,
+    }
 
+@mcp.tool()
+def analyze_emails(limit: int = 5):
+    """Analyze the latest emails."""
+
+    emails = email_service.list_emails(limit=limit)
+
+    analysis = []
+
+    for email in emails:
+
+        category = "General"
+
+        sender = email["from_name"].lower()
+        subject = email["subject"].lower()
+
+        if "security" in subject:
+            category = "Security"
+
+        elif "google" in sender:
+            category = "Google"
+
+        elif "groq" in sender:
+            category = "AI"
+
+        elif "kaggle" in sender:
+            category = "Machine Learning"
+
+        analysis.append(
+            {
+                "sender": email["from_name"],
+                "subject": email["subject"],
+                "category": category,
+                "unread": email["unread"],
+                "summary": email["snippet"],
+            }
+        )
+
+    return analysis
 
 @mcp.tool()
 def send_email(

@@ -9,78 +9,146 @@ from server.config import (
 class CalendarService:
 
     def __init__(self):
+
         self.client = Client(
             NYLAS_API_KEY
         )
 
-        self.grant_id = NYLAS_GRANT_ID
+        self.grant_id = (
+            NYLAS_GRANT_ID
+        )
 
     def list_calendars(self):
 
-        response = self.client.calendars.list(
-            self.grant_id
+        response = (
+            self.client.calendars.list(
+                self.grant_id
+            )
         )
 
         return [
             {
                 "id": calendar.id,
                 "name": calendar.name,
-                "description": calendar.description,
-                "is_primary": calendar.is_primary,
-                "timezone": calendar.timezone,
-                "read_only": calendar.read_only,
+                "description": (
+                    calendar.description
+                ),
+                "is_primary": (
+                    calendar.is_primary
+                ),
             }
             for calendar in response.data
         ]
 
+    def get_default_calendar_id(
+        self,
+    ):
+
+        calendars = (
+            self.list_calendars()
+        )
+
+        if not calendars:
+
+            raise Exception(
+                "No calendars found."
+            )
+
+        for calendar in calendars:
+
+            if calendar.get(
+                "is_primary"
+            ):
+
+                return calendar["id"]
+
+        return calendars[0]["id"]
+
     def list_events(
         self,
-        calendar_id="primary",
+        calendar_id=None,
         limit=10,
     ):
 
-        response = self.client.events.list(
-            self.grant_id,
-            query_params={
-                "calendar_id": calendar_id,
-                "limit": limit,
-            },
+        if calendar_id is None:
+
+            calendar_id = (
+                self.get_default_calendar_id()
+            )
+
+        response = (
+            self.client.events.list(
+                self.grant_id,
+                query_params={
+                    "calendar_id": (
+                        calendar_id
+                    ),
+                    "limit": limit,
+                },
+            )
         )
 
         return [
             {
                 "id": event.id,
                 "title": event.title,
-                "description": event.description,
-                "location": event.location,
+                "description": (
+                    event.description
+                ),
+                "location": (
+                    event.location
+                ),
                 "when": event.when,
+                "conferencing": getattr(
+                    event,
+                    "conferencing",
+                    None,
+                ),
             }
             for event in response.data
         ]
 
     def create_event(
         self,
-        title: str,
-        start_time: int,
-        end_time: int,
-        description: str = "",
-        location: str = "",
+        title,
+        start_time,
+        end_time,
+        description="",
     ):
 
-        response = self.client.events.create(
-            self.grant_id,
-            request_body={
-                "title": title,
-                "description": description,
-                "when": {
-                    "start_time": start_time,
-                    "end_time": end_time,
+        calendar_id = (
+            self.get_default_calendar_id()
+        )
+
+        response = (
+            self.client.events.create(
+                self.grant_id,
+                request_body={
+                    "title": title,
+                    "description": (
+                        description
+                    ),
+                    "when": {
+                        "start_time": (
+                            start_time
+                        ),
+                        "end_time": (
+                            end_time
+                        ),
+                    },
+                    "conferencing": {
+                        "provider": (
+                            "Google Meet"
+                        ),
+                        "autocreate": {},
+                    },
                 },
-                "location": location,
-            },
-            query_params={
-                "calendar_id": "primary",
-            },
+                query_params={
+                    "calendar_id": (
+                        calendar_id
+                    ),
+                },
+            )
         )
 
         event = response.data
@@ -89,8 +157,10 @@ class CalendarService:
             "success": True,
             "event_id": event.id,
             "title": event.title,
-            "description": event.description,
-            "location": event.location,
             "when": event.when,
-            "calendar_id": event.calendar_id,
+            "conferencing": getattr(
+                event,
+                "conferencing",
+                None,
+            ),
         }

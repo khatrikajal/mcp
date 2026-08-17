@@ -3,85 +3,1274 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>MCP Chat</title>
+  <title>MCP Platform</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <style>
-    * { box-sizing: border-box; }
-    body { margin: 0; font-family: Inter, system-ui, sans-serif; background: #f5f7fb; color: #172033; }
-    .app { width: min(900px, 100%); height: 100vh; margin: auto; display: flex; flex-direction: column; background: white; box-shadow: 0 0 40px #1f293712; }
-    header { padding: 18px 22px; border-bottom: 1px solid #e7eaf0; display: flex; align-items: center; gap: 12px; }
-    .logo { width: 38px; height: 38px; display: grid; place-items: center; border-radius: 12px; color: white; background: #635bff; font-weight: 800; }
-    h1 { margin: 0; font-size: 17px; }
-    .status { font-size: 12px; color: #657087; margin-top: 2px; }
-    .status::before { content: ''; display: inline-block; width: 7px; height: 7px; margin-right: 6px; border-radius: 50%; background: #22c55e; }
-    #messages { flex: 1; overflow-y: auto; padding: 28px 22px; display: flex; flex-direction: column; gap: 18px; }
-    .welcome { margin: auto; text-align: center; max-width: 430px; color: #657087; }
-    .welcome strong { display: block; color: #172033; font-size: 22px; margin-bottom: 8px; }
-    .message { max-width: 76%; line-height: 1.55; padding: 12px 15px; border-radius: 16px; white-space: pre-wrap; overflow-wrap: anywhere; }
-    .user { align-self: flex-end; color: white; background: #635bff; border-bottom-right-radius: 5px; }
-    .assistant { align-self: flex-start; background: #f0f2f7; border-bottom-left-radius: 5px; }
-    .tool { display: block; margin-top: 8px; font-size: 11px; color: #667085; font-weight: 600; }
-    .composer { padding: 16px 22px 22px; border-top: 1px solid #e7eaf0; }
-    form { display: flex; gap: 10px; padding: 8px; border: 1px solid #d9deea; border-radius: 16px; background: white; box-shadow: 0 8px 24px #1f29370a; }
-    textarea { flex: 1; resize: none; border: 0; outline: 0; padding: 9px; font: inherit; max-height: 130px; }
-    button { align-self: flex-end; border: 0; border-radius: 11px; padding: 10px 18px; color: white; background: #635bff; font-weight: 700; cursor: pointer; }
-    button:disabled { opacity: .55; cursor: default; }
-    @media (max-width: 600px) { .message { max-width: 88%; } #messages { padding-inline: 14px; } .composer { padding-inline: 12px; } }
+    /* ── Reset & Tokens ────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg-base:       #0d0f14;
+      --bg-surface:    #13161e;
+      --bg-elevated:   #1a1e28;
+      --bg-hover:      #1f2433;
+      --bg-input:      #161b26;
+      --border:        #252b3b;
+      --border-strong: #2e3549;
+
+      --text-primary:  #e8ecf4;
+      --text-secondary:#8a93a8;
+      --text-muted:    #52596b;
+
+      --accent:        #6c6ef7;
+      --accent-dim:    #3d3e8a;
+      --accent-glow:   rgba(108,110,247,.18);
+
+      --green:         #22c55e;
+      --green-dim:     rgba(34,197,94,.12);
+      --amber:         #f59e0b;
+      --red:           #ef4444;
+
+      --radius-sm:  6px;
+      --radius-md:  10px;
+      --radius-lg:  16px;
+      --radius-xl:  22px;
+
+      --sidebar-w: 280px;
+      --tools-w:   300px;
+    }
+
+    html, body { height: 100%; overflow: hidden; }
+    body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg-base); color: var(--text-primary); font-size: 14px; line-height: 1.5; }
+
+    /* ── Scrollbar ─────────────────────────────────────────── */
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 99px; }
+
+    /* ── Layout Shell ──────────────────────────────────────── */
+    .shell {
+      display: grid;
+      grid-template-columns: var(--sidebar-w) 1fr var(--tools-w);
+      height: 100vh;
+    }
+
+    /* ══════════════════════════════════════════════════════════
+       LEFT SIDEBAR
+    ══════════════════════════════════════════════════════════ */
+    .sidebar {
+      background: var(--bg-surface);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .sidebar-header {
+      padding: 20px 18px 16px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .brand-icon {
+      width: 34px; height: 34px;
+      background: linear-gradient(135deg, var(--accent), #9c6ef7);
+      border-radius: var(--radius-md);
+      display: grid; place-items: center;
+      font-size: 16px; font-weight: 800; color: #fff;
+      flex-shrink: 0;
+      box-shadow: 0 0 0 1px rgba(108,110,247,.4), 0 4px 12px rgba(108,110,247,.25);
+    }
+
+    .brand-name { font-size: 15px; font-weight: 700; letter-spacing: -.3px; }
+    .brand-sub  { font-size: 11px; color: var(--text-muted); margin-top: 1px; }
+
+    .new-chat-btn {
+      width: 100%;
+      padding: 9px 14px;
+      border-radius: var(--radius-md);
+      border: 1px dashed var(--border-strong);
+      background: transparent;
+      color: var(--text-secondary);
+      font: 500 13px 'Inter', sans-serif;
+      cursor: pointer;
+      display: flex; align-items: center; gap: 8px;
+      transition: all .18s;
+    }
+    .new-chat-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-glow); }
+    .new-chat-btn svg { flex-shrink: 0; }
+
+    .section-label {
+      padding: 14px 18px 6px;
+      font-size: 10px; font-weight: 700; letter-spacing: 1.2px;
+      color: var(--text-muted); text-transform: uppercase;
+    }
+
+    .chat-list { flex: 1; overflow-y: auto; padding: 4px 10px 12px; }
+
+    .chat-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 9px 10px;
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      position: relative;
+      transition: background .15s;
+    }
+    .chat-item:hover { background: var(--bg-hover); }
+    .chat-item.active { background: var(--bg-elevated); }
+    .chat-item.active::before {
+      content: '';
+      position: absolute; left: 0; top: 50%;
+      transform: translateY(-50%);
+      width: 3px; height: 60%;
+      background: var(--accent); border-radius: 0 3px 3px 0;
+    }
+
+    .chat-item-icon {
+      width: 30px; height: 30px;
+      border-radius: var(--radius-sm);
+      background: var(--bg-hover);
+      display: grid; place-items: center;
+      font-size: 14px; flex-shrink: 0;
+    }
+    .chat-item.active .chat-item-icon { background: var(--accent-dim); }
+
+    .chat-item-info { flex: 1; min-width: 0; }
+    .chat-item-name { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .chat-item-preview { font-size: 11px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
+
+    .chat-item-del {
+      opacity: 0; width: 22px; height: 22px;
+      border-radius: 5px; border: none;
+      background: transparent; color: var(--text-muted);
+      cursor: pointer; display: grid; place-items: center;
+      transition: all .15s; flex-shrink: 0;
+    }
+    .chat-item:hover .chat-item-del { opacity: 1; }
+    .chat-item-del:hover { background: rgba(239,68,68,.15); color: var(--red); }
+
+    /* ══════════════════════════════════════════════════════════
+       MAIN CHAT AREA
+    ══════════════════════════════════════════════════════════ */
+    .main {
+      display: flex; flex-direction: column;
+      overflow: hidden; background: var(--bg-base);
+      position: relative;
+    }
+
+    /* Top bar */
+    .topbar {
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 12px;
+      background: var(--bg-surface);
+      flex-shrink: 0;
+    }
+
+    .topbar-title { font-size: 15px; font-weight: 600; flex: 1; }
+    .topbar-subtitle { font-size: 12px; color: var(--text-muted); }
+
+    .topbar-badge {
+      display: flex; align-items: center; gap: 5px;
+      padding: 4px 10px; border-radius: 99px;
+      background: var(--green-dim); border: 1px solid rgba(34,197,94,.2);
+      font-size: 11px; font-weight: 600; color: var(--green);
+    }
+    .topbar-badge::before {
+      content: '';
+      width: 6px; height: 6px; border-radius: 50%;
+      background: var(--green);
+      animation: pulse 2s ease-in-out infinite;
+    }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+    .icon-btn {
+      width: 34px; height: 34px;
+      border-radius: var(--radius-md); border: 1px solid var(--border);
+      background: var(--bg-elevated); color: var(--text-secondary);
+      cursor: pointer; display: grid; place-items: center;
+      transition: all .15s;
+    }
+    .icon-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-glow); }
+
+    /* Messages */
+    .messages {
+      flex: 1; overflow-y: auto;
+      padding: 32px 28px; display: flex; flex-direction: column; gap: 24px;
+    }
+
+    /* Welcome */
+    .welcome-screen {
+      flex: 1; display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      text-align: center; padding: 48px 32px; gap: 24px;
+    }
+    .welcome-icon {
+      width: 72px; height: 72px;
+      background: linear-gradient(135deg, var(--accent), #9c6ef7);
+      border-radius: 22px;
+      display: grid; place-items: center; font-size: 32px;
+      box-shadow: 0 0 0 1px rgba(108,110,247,.35), 0 8px 32px rgba(108,110,247,.3);
+    }
+    .welcome-title { font-size: 26px; font-weight: 700; letter-spacing: -.5px; }
+    .welcome-subtitle { color: var(--text-secondary); max-width: 420px; line-height: 1.6; }
+
+    .suggestion-chips {
+      display: flex; flex-wrap: wrap; gap: 8px; justify-content: center;
+      max-width: 500px;
+    }
+    .chip {
+      padding: 8px 14px; border-radius: var(--radius-xl);
+      border: 1px solid var(--border-strong);
+      background: var(--bg-elevated);
+      color: var(--text-secondary); font-size: 12px; font-weight: 500;
+      cursor: pointer; transition: all .18s;
+    }
+    .chip:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-glow); }
+
+    /* Message bubbles */
+    .msg-row { display: flex; gap: 12px; max-width: 840px; width: 100%; }
+    .msg-row.user { align-self: flex-end; flex-direction: row-reverse; }
+    .msg-row.assistant { align-self: flex-start; }
+
+    .msg-avatar {
+      width: 32px; height: 32px; border-radius: 10px;
+      display: grid; place-items: center; font-size: 14px;
+      flex-shrink: 0; margin-top: 2px;
+    }
+    .msg-row.user .msg-avatar { background: var(--accent-dim); color: var(--accent); }
+    .msg-row.assistant .msg-avatar { background: var(--bg-elevated); border: 1px solid var(--border); }
+
+    .msg-body { flex: 1; min-width: 0; }
+
+    .msg-bubble {
+      padding: 12px 16px;
+      border-radius: var(--radius-lg);
+      font-size: 14px; line-height: 1.65;
+      white-space: pre-wrap; word-break: break-word;
+    }
+    .msg-row.user .msg-bubble {
+      background: var(--accent);
+      color: #fff;
+      border-bottom-right-radius: 4px;
+      box-shadow: 0 4px 16px rgba(108,110,247,.3);
+    }
+    .msg-row.assistant .msg-bubble {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-bottom-left-radius: 4px;
+      color: var(--text-primary);
+    }
+
+    .msg-meta {
+      display: flex; align-items: center; gap: 6px;
+      margin-top: 6px; font-size: 11px; color: var(--text-muted);
+    }
+    .msg-row.user .msg-meta { flex-direction: row-reverse; }
+
+    .tool-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
+    .tool-tag {
+      padding: 3px 8px; border-radius: 99px;
+      background: rgba(108,110,247,.1); border: 1px solid rgba(108,110,247,.2);
+      font-size: 10px; font-weight: 600; color: var(--accent);
+      display: flex; align-items: center; gap: 4px;
+    }
+    .tool-tag::before { content: '⚡'; font-size: 9px; }
+
+    /* Thinking indicator */
+    .thinking-bubble {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-bottom-left-radius: 4px;
+      padding: 14px 18px;
+      border-radius: var(--radius-lg);
+      display: flex; align-items: center; gap: 10px;
+      color: var(--text-secondary); font-size: 13px;
+    }
+    .dots { display: flex; gap: 4px; }
+    .dots span {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: var(--accent);
+      animation: bounce 1.2s ease-in-out infinite;
+    }
+    .dots span:nth-child(2) { animation-delay: .2s; }
+    .dots span:nth-child(3) { animation-delay: .4s; }
+    @keyframes bounce { 0%,80%,100%{transform:scale(0.8);opacity:.5} 40%{transform:scale(1.1);opacity:1} }
+
+    /* ── Composer ───────────────────────────────────────────── */
+    .composer-wrap {
+      padding: 16px 20px 20px;
+      background: var(--bg-surface);
+      border-top: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .active-tools-bar {
+      display: flex; align-items: center; gap: 6px;
+      margin-bottom: 10px; flex-wrap: wrap;
+    }
+    .active-tools-label { font-size: 11px; color: var(--text-muted); margin-right: 2px; }
+    .active-tool-pill {
+      display: flex; align-items: center; gap: 5px;
+      padding: 3px 9px; border-radius: 99px;
+      background: var(--bg-elevated); border: 1px solid var(--border);
+      font-size: 11px; color: var(--text-secondary);
+    }
+    .active-tool-pill .dot {
+      width: 5px; height: 5px; border-radius: 50%; background: var(--green);
+    }
+
+    .composer {
+      display: flex; align-items: flex-end; gap: 10px;
+      background: var(--bg-input);
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius-xl);
+      padding: 12px 14px;
+      transition: border-color .18s;
+    }
+    .composer:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+
+    #chat-input {
+      flex: 1; resize: none; border: none; outline: none;
+      background: transparent; color: var(--text-primary);
+      font: 14px/1.55 'Inter', sans-serif;
+      max-height: 160px; min-height: 22px;
+      scrollbar-width: thin;
+    }
+    #chat-input::placeholder { color: var(--text-muted); }
+
+    .send-btn {
+      width: 36px; height: 36px; border-radius: 10px;
+      border: none; background: var(--accent); color: #fff;
+      cursor: pointer; display: grid; place-items: center;
+      transition: all .18s; flex-shrink: 0;
+    }
+    .send-btn:hover:not(:disabled) { background: #7c7ef8; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(108,110,247,.4); }
+    .send-btn:disabled { opacity: .4; cursor: default; transform: none; }
+
+    .composer-hint {
+      margin-top: 8px; font-size: 11px; color: var(--text-muted); text-align: center;
+    }
+    .composer-hint kbd {
+      background: var(--bg-elevated); border: 1px solid var(--border);
+      border-radius: 4px; padding: 1px 5px; font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+    }
+
+    /* ══════════════════════════════════════════════════════════
+       RIGHT TOOLS PANEL
+    ══════════════════════════════════════════════════════════ */
+    .tools-panel {
+      background: var(--bg-surface);
+      border-left: 1px solid var(--border);
+      display: flex; flex-direction: column;
+      overflow: hidden;
+    }
+
+    .tools-header {
+      padding: 16px 18px 14px;
+      border-bottom: 1px solid var(--border);
+    }
+    .tools-header-top {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 12px;
+    }
+    .tools-title { font-size: 14px; font-weight: 700; }
+    .tools-count {
+      font-size: 11px; font-weight: 600; color: var(--text-muted);
+      background: var(--bg-elevated); border: 1px solid var(--border);
+      padding: 2px 8px; border-radius: 99px;
+    }
+
+    .tools-search {
+      display: flex; align-items: center; gap: 8px;
+      background: var(--bg-input); border: 1px solid var(--border);
+      border-radius: var(--radius-md); padding: 7px 10px;
+    }
+    .tools-search svg { color: var(--text-muted); flex-shrink: 0; }
+    .tools-search input {
+      flex: 1; border: none; outline: none; background: transparent;
+      color: var(--text-primary); font: 13px 'Inter', sans-serif;
+    }
+    .tools-search input::placeholder { color: var(--text-muted); }
+
+    .tools-body { flex: 1; overflow-y: auto; padding: 12px 12px; }
+
+    .tool-category { margin-bottom: 4px; }
+    .tool-category-label {
+      font-size: 10px; font-weight: 700; letter-spacing: 1.1px;
+      color: var(--text-muted); text-transform: uppercase;
+      padding: 8px 6px 4px;
+    }
+
+    .tool-card {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 10px;
+      border-radius: var(--radius-md);
+      border: 1px solid transparent;
+      cursor: pointer; transition: all .18s;
+      margin-bottom: 2px;
+    }
+    .tool-card:hover { background: var(--bg-hover); border-color: var(--border); }
+    .tool-card.connected { background: var(--bg-elevated); border-color: var(--border); }
+
+    .tool-card-icon {
+      width: 36px; height: 36px; border-radius: 10px;
+      display: grid; place-items: center; font-size: 18px;
+      flex-shrink: 0; transition: all .2s;
+    }
+    .tool-card.connected .tool-card-icon { box-shadow: 0 0 0 2px var(--green), 0 0 12px rgba(34,197,94,.2); }
+
+    .tool-card-info { flex: 1; min-width: 0; }
+    .tool-card-name { font-size: 13px; font-weight: 600; }
+    .tool-card-desc { font-size: 11px; color: var(--text-muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    /* Toggle switch */
+    .toggle { position: relative; width: 34px; height: 19px; flex-shrink: 0; }
+    .toggle input { opacity: 0; width: 0; height: 0; }
+    .toggle-track {
+      position: absolute; inset: 0;
+      background: var(--border-strong); border-radius: 99px;
+      cursor: pointer; transition: background .2s;
+    }
+    .toggle input:checked + .toggle-track { background: var(--green); }
+    .toggle-thumb {
+      position: absolute; top: 3px; left: 3px;
+      width: 13px; height: 13px; border-radius: 50%;
+      background: #fff; transition: transform .2s;
+      pointer-events: none;
+    }
+    .toggle input:checked ~ .toggle-thumb { transform: translateX(15px); }
+
+    /* Tool detail expand */
+    .tool-details {
+      max-height: 0; overflow: hidden;
+      transition: max-height .25s ease;
+      margin-left: 46px;
+    }
+    .tool-details.open { max-height: 200px; }
+    .tool-detail-item {
+      display: flex; align-items: center; gap: 6px;
+      padding: 5px 0; font-size: 11px; color: var(--text-secondary);
+      border-top: 1px solid var(--border);
+    }
+    .tool-detail-item:first-child { border-top: none; }
+    .fn-name {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10.5px; color: var(--accent);
+      background: var(--accent-glow); padding: 2px 6px;
+      border-radius: 4px;
+    }
+
+    /* Tools footer stats */
+    .tools-footer {
+      padding: 12px 16px;
+      border-top: 1px solid var(--border);
+      display: flex; gap: 16px;
+    }
+    .stat { text-align: center; flex: 1; }
+    .stat-num { font-size: 20px; font-weight: 700; color: var(--text-primary); }
+    .stat-label { font-size: 10px; color: var(--text-muted); margin-top: 1px; }
+
+    /* ── Toasts ─────────────────────────────────────────────── */
+    .toast-container {
+      position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+      display: flex; flex-direction: column; gap: 8px; z-index: 999;
+      pointer-events: none;
+    }
+    .toast {
+      padding: 10px 18px; border-radius: var(--radius-md);
+      background: var(--bg-elevated); border: 1px solid var(--border-strong);
+      color: var(--text-primary); font-size: 13px; font-weight: 500;
+      display: flex; align-items: center; gap: 8px;
+      animation: slideUp .25s ease forwards;
+      pointer-events: all;
+    }
+    .toast.success { border-color: rgba(34,197,94,.3); }
+    .toast.info    { border-color: rgba(108,110,247,.3); }
+    @keyframes slideUp { from{transform:translateY(12px);opacity:0} to{transform:none;opacity:1} }
+
+    /* ── Modal ──────────────────────────────────────────────── */
+    .modal-overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,.65); backdrop-filter: blur(4px);
+      z-index: 100; display: flex; align-items: center; justify-content: center;
+      opacity: 0; pointer-events: none; transition: opacity .2s;
+    }
+    .modal-overlay.open { opacity: 1; pointer-events: all; }
+    .modal {
+      background: var(--bg-elevated); border: 1px solid var(--border-strong);
+      border-radius: var(--radius-xl); padding: 28px 28px 24px;
+      max-width: 440px; width: 90%;
+      transform: scale(.96) translateY(8px); transition: transform .2s;
+    }
+    .modal-overlay.open .modal { transform: scale(1) translateY(0); }
+    .modal-title { font-size: 17px; font-weight: 700; margin-bottom: 8px; }
+    .modal-sub { color: var(--text-secondary); font-size: 13px; margin-bottom: 20px; }
+    .modal-field { margin-bottom: 14px; }
+    .modal-label { font-size: 12px; font-weight: 600; color: var(--text-secondary); margin-bottom: 6px; display: block; }
+    .modal-input {
+      width: 100%; padding: 9px 12px;
+      background: var(--bg-input); border: 1px solid var(--border-strong);
+      border-radius: var(--radius-md); color: var(--text-primary);
+      font: 14px 'Inter', sans-serif; outline: none;
+      transition: border-color .18s;
+    }
+    .modal-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+    .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+    .btn-secondary {
+      padding: 9px 18px; border-radius: var(--radius-md);
+      border: 1px solid var(--border-strong); background: transparent;
+      color: var(--text-secondary); font: 500 13px 'Inter'; cursor: pointer;
+      transition: all .15s;
+    }
+    .btn-secondary:hover { border-color: var(--text-secondary); color: var(--text-primary); }
+    .btn-primary {
+      padding: 9px 18px; border-radius: var(--radius-md);
+      border: none; background: var(--accent);
+      color: #fff; font: 600 13px 'Inter'; cursor: pointer;
+      transition: all .15s;
+    }
+    .btn-primary:hover { background: #7c7ef8; }
+
+    /* ── Rename input inline ────────────────────────────────── */
+    .chat-name-input {
+      background: transparent; border: none; outline: none;
+      color: var(--text-primary); font: 500 13px 'Inter'; width: 100%;
+    }
+
+    /* ── Responsive collapse ────────────────────────────────── */
+    @media (max-width: 900px) {
+      .tools-panel { display: none; }
+      .shell { grid-template-columns: var(--sidebar-w) 1fr; }
+    }
+    @media (max-width: 640px) {
+      .sidebar { display: none; }
+      .shell { grid-template-columns: 1fr; }
+    }
   </style>
 </head>
 <body>
-  <main class="app">
-    <header><div class="logo">M</div><div><h1>MCP Assistant</h1><div class="status">Connected to tools</div></div></header>
-    <section id="messages"><div class="welcome"><strong>How can I help?</strong>Ask a general question or request live weather. The assistant will decide when to use a tool.</div></section>
-    <div class="composer"><form id="form"><textarea id="input" rows="1" placeholder="Message MCP Assistant..." autofocus></textarea><button id="send">Send</button></form></div>
+
+<div class="shell">
+
+  <!-- ═══════════════ LEFT SIDEBAR ═══════════════ -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div class="brand">
+        <div class="brand-icon">M</div>
+        <div>
+          <div class="brand-name">MCP Platform</div>
+          <div class="brand-sub">Model Context Protocol</div>
+        </div>
+      </div>
+      <button class="new-chat-btn" id="new-chat-btn">
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+        New Chat
+      </button>
+    </div>
+
+    <div class="section-label">Recent Chats</div>
+    <div class="chat-list" id="chat-list"></div>
+  </aside>
+
+  <!-- ═══════════════ MAIN AREA ═══════════════ -->
+  <main class="main">
+    <!-- Topbar -->
+    <div class="topbar">
+      <div style="flex:1">
+        <div class="topbar-title" id="topbar-title">New Chat</div>
+        <div class="topbar-subtitle" id="topbar-subtitle">Select tools from the panel →</div>
+      </div>
+      <div class="topbar-badge" id="connection-badge">Connected</div>
+      <button class="icon-btn" id="clear-btn" title="Clear messages">
+        <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+      </button>
+    </div>
+
+    <!-- Messages -->
+    <div class="messages" id="messages">
+      <div class="welcome-screen" id="welcome">
+        <div class="welcome-icon">🤖</div>
+        <div>
+          <div class="welcome-title">MCP Assistant</div>
+          <p class="welcome-subtitle" style="margin-top:8px">Connect tools from the right panel, then ask anything. I'll use the enabled tools automatically.</p>
+        </div>
+        <div class="suggestion-chips" id="suggestion-chips">
+          <div class="chip" data-msg="What's the weather in Mumbai?">🌤 Weather in Mumbai</div>
+          <div class="chip" data-msg="List my upcoming calendar events">📅 Calendar Events</div>
+          <div class="chip" data-msg="Show my latest emails">📧 Latest Emails</div>
+          <div class="chip" data-msg="What's the current date and time?">🕐 Current Time</div>
+          <div class="chip" data-msg="Join my next scheduled meeting">🎥 Join Next Meeting</div>
+          <div class="chip" data-msg="Analyze my recent emails">🔍 Analyze Emails</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Composer -->
+    <div class="composer-wrap">
+      <div class="active-tools-bar" id="active-tools-bar">
+        <span class="active-tools-label">Active:</span>
+        <span class="active-tool-pill" id="no-tools-msg" style="color:var(--amber);border-color:rgba(245,158,11,.2)">No tools connected — chat still works</span>
+      </div>
+      <div class="composer">
+        <textarea id="chat-input" rows="1" placeholder="Message MCP Assistant…" autofocus></textarea>
+        <button class="send-btn" id="send-btn" disabled>
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        </button>
+      </div>
+      <div class="composer-hint">Press <kbd>Enter</kbd> to send &nbsp;·&nbsp; <kbd>Shift+Enter</kbd> for new line</div>
+    </div>
   </main>
-  <script>
-    const form = document.querySelector('#form');
-    const input = document.querySelector('#input');
-    const send = document.querySelector('#send');
-    const messages = document.querySelector('#messages');
-    const history = [];
 
-    function addMessage(role, text, tools = []) {
-      document.querySelector('.welcome')?.remove();
-      const item = document.createElement('div');
-      item.className = `message ${role}`;
-      item.textContent = text;
-      if (tools.length) {
-        const badge = document.createElement('span');
-        badge.className = 'tool';
-        badge.textContent = `Tool used: ${tools.join(', ')}`;
-        item.appendChild(badge);
-      }
-      messages.appendChild(item);
-      messages.scrollTop = messages.scrollHeight;
-      return item;
-    }
+  <!-- ═══════════════ RIGHT TOOLS PANEL ═══════════════ -->
+  <aside class="tools-panel">
+    <div class="tools-header">
+      <div class="tools-header-top">
+        <div class="tools-title">Tools & Connectors</div>
+        <div class="tools-count" id="tools-count">0 / 0</div>
+      </div>
+      <div class="tools-search">
+        <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" id="tool-search" placeholder="Search tools…">
+      </div>
+    </div>
 
-    form.addEventListener('submit', async (event) => {
-      event.preventDefault();
-      const text = input.value.trim();
-      if (!text || send.disabled) return;
-      input.value = '';
-      addMessage('user', text);
-      history.push({ role: 'user', content: text });
-      const pending = addMessage('assistant', 'Thinking…');
-      send.disabled = true;
-      try {
-        const response = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ history }) });
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error || 'Request failed');
-        pending.remove();
-        addMessage('assistant', data.message, data.tools_used);
-        history.push({ role: 'assistant', content: data.message });
-      } catch (error) {
-        pending.textContent = `Error: ${error.message}`;
-      } finally {
-        send.disabled = false;
-        input.focus();
-      }
+    <div class="tools-body" id="tools-body"></div>
+
+    <div class="tools-footer">
+      <div class="stat">
+        <div class="stat-num" id="stat-connected">0</div>
+        <div class="stat-label">Connected</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num" id="stat-calls">0</div>
+        <div class="stat-label">Tool Calls</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num" id="stat-msgs">0</div>
+        <div class="stat-label">Messages</div>
+      </div>
+    </div>
+  </aside>
+</div>
+
+<!-- ═══ New Chat Modal ═══ -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <div class="modal-title">Create New Chat</div>
+    <div class="modal-sub">Give this chat a name to keep things organized.</div>
+    <div class="modal-field">
+      <label class="modal-label">Chat Name</label>
+      <input class="modal-input" id="modal-name" placeholder="e.g. Email Assistant, Weather Bot…" maxlength="48">
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" id="modal-cancel">Cancel</button>
+      <button class="btn-primary" id="modal-create">Create Chat</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-container" id="toasts"></div>
+
+<script>
+/* ══════════════════════════════════════════════════════════════
+   DATA
+══════════════════════════════════════════════════════════════ */
+const TOOL_REGISTRY = [
+  {
+    category: "Productivity",
+    tools: [
+      {
+        id: "datetime",
+        name: "Date & Time",
+        desc: "Current IST date, time, day",
+        icon: "🕐",
+        color: "#6366f1",
+        functions: ["get_current_datetime"],
+        connected: true,
+      },
+      {
+        id: "calendar",
+        name: "Calendar",
+        desc: "List, create & manage events (Nylas)",
+        icon: "📅",
+        color: "#0ea5e9",
+        functions: ["get_calendars", "list_calendar_events", "create_calendar_event"],
+        connected: false,
+      },
+      {
+        id: "notetaker",
+        name: "Notetaker",
+        desc: "Join & record meetings",
+        icon: "📝",
+        color: "#8b5cf6",
+        functions: ["join_meeting"],
+        connected: false,
+      },
+      {
+        id: "meeting",
+        name: "Meetings",
+        desc: "Auto-join next scheduled meeting",
+        icon: "🎥",
+        color: "#f43f5e",
+        functions: ["join_next_meeting"],
+        connected: false,
+      },
+    ],
+  },
+  {
+    category: "Communication",
+    tools: [
+      {
+        id: "email",
+        name: "Email",
+        desc: "List, analyze & send emails (Nylas)",
+        icon: "📧",
+        color: "#22c55e",
+        functions: ["list_emails", "analyze_emails", "send_email"],
+        connected: false,
+      },
+    ],
+  },
+  {
+    category: "Data & External",
+    tools: [
+      {
+        id: "weather",
+        name: "Weather",
+        desc: "Live weather for any city (OpenWeather)",
+        icon: "🌤",
+        color: "#f59e0b",
+        functions: ["get_weather"],
+        connected: true,
+      },
+    ],
+  },
+];
+
+/* ══════════════════════════════════════════════════════════════
+   STATE
+══════════════════════════════════════════════════════════════ */
+let state = {
+  chats: [],           // [{id, name, history, toolIds}]
+  activeChatId: null,
+  tools: {},           // flat map: id -> tool object
+  expandedTool: null,
+  totalCalls: 0,
+  totalMsgs: 0,
+};
+
+// Flatten tool registry into state.tools
+TOOL_REGISTRY.forEach(cat => cat.tools.forEach(t => { state.tools[t.id] = {...t}; }));
+
+/* persist / restore */
+function saveState() {
+  const s = { chats: state.chats, activeChatId: state.activeChatId, toolStates: {} };
+  Object.values(state.tools).forEach(t => s.toolStates[t.id] = t.connected);
+  try { localStorage.setItem('mcpState', JSON.stringify(s)); } catch(e) {}
+}
+function loadState() {
+  try {
+    const raw = localStorage.getItem('mcpState');
+    if (!raw) return;
+    const s = JSON.parse(raw);
+    if (s.chats) state.chats = s.chats;
+    if (s.activeChatId) state.activeChatId = s.activeChatId;
+    if (s.toolStates) Object.entries(s.toolStates).forEach(([id, val]) => {
+      if (state.tools[id]) state.tools[id].connected = val;
+    });
+  } catch(e) {}
+}
+
+/* ══════════════════════════════════════════════════════════════
+   RENDER HELPERS
+══════════════════════════════════════════════════════════════ */
+const $ = id => document.getElementById(id);
+
+function toast(msg, type = 'info', duration = 2500) {
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  const icon = type === 'success' ? '✅' : type === 'error' ? '❌' : 'ℹ️';
+  el.innerHTML = `<span>${icon}</span><span>${msg}</span>`;
+  $('toasts').appendChild(el);
+  setTimeout(() => el.remove(), duration);
+}
+
+function autoResize(ta) {
+  ta.style.height = 'auto';
+  ta.style.height = Math.min(ta.scrollHeight, 160) + 'px';
+}
+
+function timeStr() {
+  return new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+}
+
+/* ══════════════════════════════════════════════════════════════
+   SIDEBAR / CHAT LIST
+══════════════════════════════════════════════════════════════ */
+function renderSidebar() {
+  const list = $('chat-list');
+  list.innerHTML = '';
+
+  if (state.chats.length === 0) {
+    list.innerHTML = '<div style="padding:16px 14px;color:var(--text-muted);font-size:12px">No chats yet. Click "New Chat" to begin.</div>';
+    return;
+  }
+
+  [...state.chats].reverse().forEach(chat => {
+    const item = document.createElement('div');
+    item.className = 'chat-item' + (chat.id === state.activeChatId ? ' active' : '');
+    item.dataset.id = chat.id;
+
+    const preview = chat.history.length
+      ? chat.history[chat.history.length - 1].content.slice(0, 38) + '…'
+      : 'No messages yet';
+
+    item.innerHTML = `
+      <div class="chat-item-icon">💬</div>
+      <div class="chat-item-info">
+        <div class="chat-item-name">${escHtml(chat.name)}</div>
+        <div class="chat-item-preview">${escHtml(preview)}</div>
+      </div>
+      <button class="chat-item-del" title="Delete" data-del="${chat.id}">
+        <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    `;
+    item.addEventListener('click', e => {
+      if (e.target.closest('[data-del]')) { deleteChat(chat.id); return; }
+      switchChat(chat.id);
+    });
+    list.appendChild(item);
+  });
+}
+
+function escHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+/* ══════════════════════════════════════════════════════════════
+   TOOLS PANEL
+══════════════════════════════════════════════════════════════ */
+function renderTools(filter = '') {
+  const body = $('tools-body');
+  body.innerHTML = '';
+  const fl = filter.toLowerCase();
+
+  let total = 0, connected = 0;
+
+  TOOL_REGISTRY.forEach(cat => {
+    const filtered = cat.tools.filter(t =>
+      !fl || t.name.toLowerCase().includes(fl) || t.desc.toLowerCase().includes(fl)
+    );
+    if (!filtered.length) return;
+
+    const catEl = document.createElement('div');
+    catEl.className = 'tool-category';
+    catEl.innerHTML = `<div class="tool-category-label">${cat.category}</div>`;
+
+    filtered.forEach(t => {
+      const live = state.tools[t.id];
+      total++;
+      if (live.connected) connected++;
+
+      const card = document.createElement('div');
+      card.className = 'tool-card' + (live.connected ? ' connected' : '');
+      card.dataset.toolId = t.id;
+
+      const expanded = state.expandedTool === t.id;
+
+      card.innerHTML = `
+        <div class="tool-card-icon" style="background:${t.color}22;">${t.icon}</div>
+        <div class="tool-card-info">
+          <div class="tool-card-name">${t.name}</div>
+          <div class="tool-card-desc">${t.desc}</div>
+        </div>
+        <label class="toggle" onclick="event.stopPropagation()">
+          <input type="checkbox" ${live.connected ? 'checked' : ''} data-toggle="${t.id}">
+          <div class="toggle-track"></div>
+          <div class="toggle-thumb"></div>
+        </label>
+      `;
+
+      // functions detail
+      const detail = document.createElement('div');
+      detail.className = 'tool-details' + (expanded ? ' open' : '');
+      t.functions.forEach(fn => {
+        const di = document.createElement('div');
+        di.className = 'tool-detail-item';
+        di.innerHTML = `<span class="fn-name">${fn}()</span><span style="color:var(--text-muted);font-size:10px">MCP Tool</span>`;
+        detail.appendChild(di);
+      });
+
+      card.addEventListener('click', e => {
+        if (e.target.closest('label')) return;
+        state.expandedTool = state.expandedTool === t.id ? null : t.id;
+        renderTools(filter);
+      });
+
+      const toggle = card.querySelector('[data-toggle]');
+      toggle.addEventListener('change', () => toggleTool(t.id, toggle.checked));
+
+      catEl.appendChild(card);
+      catEl.appendChild(detail);
     });
 
-    input.addEventListener('keydown', event => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); form.requestSubmit(); } });
-  </script>
+    body.appendChild(catEl);
+  });
+
+  $('tools-count').textContent = `${connected} / ${total}`;
+  $('stat-connected').textContent = connected;
+  updateActiveToolsBar();
+}
+
+function toggleTool(id, on) {
+  state.tools[id].connected = on;
+  const name = state.tools[id].name;
+  toast(on ? `${name} connected` : `${name} disconnected`, on ? 'success' : 'info');
+  renderTools($('tool-search').value);
+  updateActiveToolsBar();
+  saveState();
+}
+
+function updateActiveToolsBar() {
+  const bar = $('active-tools-bar');
+  const noMsg = $('no-tools-msg');
+  const connected = Object.values(state.tools).filter(t => t.connected);
+
+  // remove old pills
+  bar.querySelectorAll('.active-tool-pill:not(#no-tools-msg)').forEach(el => el.remove());
+
+  if (connected.length === 0) {
+    noMsg.style.display = '';
+  } else {
+    noMsg.style.display = 'none';
+    connected.forEach(t => {
+      const pill = document.createElement('div');
+      pill.className = 'active-tool-pill';
+      pill.innerHTML = `<span class="dot"></span>${t.icon} ${t.name}`;
+      bar.appendChild(pill);
+    });
+  }
+
+  updateTopbarSubtitle();
+}
+
+function updateTopbarSubtitle() {
+  const connected = Object.values(state.tools).filter(t => t.connected);
+  if (connected.length === 0) {
+    $('topbar-subtitle').textContent = 'No tools connected';
+  } else {
+    $('topbar-subtitle').textContent = `${connected.length} tool${connected.length > 1 ? 's' : ''} active`;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   CHAT MANAGEMENT
+══════════════════════════════════════════════════════════════ */
+function createChat(name) {
+  const id = 'chat_' + Date.now();
+  const chat = { id, name, history: [], toolIds: [] };
+  state.chats.push(chat);
+  state.activeChatId = id;
+  saveState();
+  renderSidebar();
+  renderMessages();
+  $('topbar-title').textContent = name;
+  return chat;
+}
+
+function switchChat(id) {
+  state.activeChatId = id;
+  const chat = getActiveChat();
+  if (chat) $('topbar-title').textContent = chat.name;
+  renderSidebar();
+  renderMessages();
+  saveState();
+}
+
+function deleteChat(id) {
+  state.chats = state.chats.filter(c => c.id !== id);
+  if (state.activeChatId === id) {
+    state.activeChatId = state.chats.length ? state.chats[state.chats.length - 1].id : null;
+  }
+  saveState();
+  renderSidebar();
+  if (state.activeChatId) {
+    const chat = getActiveChat();
+    $('topbar-title').textContent = chat ? chat.name : 'New Chat';
+    renderMessages();
+  } else {
+    $('topbar-title').textContent = 'New Chat';
+    showWelcome();
+  }
+  toast('Chat deleted', 'info');
+}
+
+function getActiveChat() {
+  return state.chats.find(c => c.id === state.activeChatId) || null;
+}
+
+function ensureChat() {
+  if (!state.activeChatId) {
+    createChat('Chat ' + (state.chats.length + 1));
+  }
+  return getActiveChat();
+}
+
+/* ══════════════════════════════════════════════════════════════
+   MESSAGE RENDERING
+══════════════════════════════════════════════════════════════ */
+function showWelcome() {
+  const msgs = $('messages');
+  msgs.innerHTML = `
+    <div class="welcome-screen" id="welcome">
+      <div class="welcome-icon">🤖</div>
+      <div>
+        <div class="welcome-title">MCP Assistant</div>
+        <p class="welcome-subtitle" style="margin-top:8px">Connect tools from the right panel, then ask anything. I'll use the enabled tools automatically.</p>
+      </div>
+      <div class="suggestion-chips" id="suggestion-chips">
+        <div class="chip" data-msg="What's the weather in Mumbai?">🌤 Weather in Mumbai</div>
+        <div class="chip" data-msg="List my upcoming calendar events">📅 Calendar Events</div>
+        <div class="chip" data-msg="Show my latest emails">📧 Latest Emails</div>
+        <div class="chip" data-msg="What's the current date and time?">🕐 Current Time</div>
+        <div class="chip" data-msg="Join my next scheduled meeting">🎥 Join Next Meeting</div>
+        <div class="chip" data-msg="Analyze my recent emails">🔍 Analyze Emails</div>
+      </div>
+    </div>`;
+  bindChips();
+}
+
+function renderMessages() {
+  const chat = getActiveChat();
+  if (!chat || chat.history.length === 0) { showWelcome(); return; }
+
+  const msgs = $('messages');
+  msgs.innerHTML = '';
+  chat.history.forEach(m => {
+    if (m.role === 'user') appendUserBubble(m.content);
+    else if (m.role === 'assistant') appendAssistantBubble(m.content, m.tools_used || []);
+  });
+}
+
+function appendUserBubble(text) {
+  const msgs = $('messages');
+  document.getElementById('welcome')?.remove();
+
+  const row = document.createElement('div');
+  row.className = 'msg-row user';
+  row.innerHTML = `
+    <div class="msg-avatar">👤</div>
+    <div class="msg-body">
+      <div class="msg-bubble">${escHtml(text)}</div>
+      <div class="msg-meta">${timeStr()}</div>
+    </div>`;
+  msgs.appendChild(row);
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+function appendAssistantBubble(text, tools_used = []) {
+  const msgs = $('messages');
+  document.getElementById('welcome')?.remove();
+
+  const tagHtml = tools_used.length
+    ? `<div class="tool-tags">${tools_used.map(t => `<span class="tool-tag">${t}</span>`).join('')}</div>`
+    : '';
+
+  const row = document.createElement('div');
+  row.className = 'msg-row assistant';
+  row.innerHTML = `
+    <div class="msg-avatar">🤖</div>
+    <div class="msg-body">
+      <div class="msg-bubble">${escHtml(text)}${tagHtml}</div>
+      <div class="msg-meta">${timeStr()}</div>
+    </div>`;
+  msgs.appendChild(row);
+  msgs.scrollTop = msgs.scrollHeight;
+  return row;
+}
+
+function appendThinking() {
+  const msgs = $('messages');
+  document.getElementById('welcome')?.remove();
+
+  const row = document.createElement('div');
+  row.className = 'msg-row assistant';
+  row.id = 'thinking-row';
+  row.innerHTML = `
+    <div class="msg-avatar">🤖</div>
+    <div class="msg-body">
+      <div class="thinking-bubble">
+        <div class="dots"><span></span><span></span><span></span></div>
+        Thinking…
+      </div>
+    </div>`;
+  msgs.appendChild(row);
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+function removeThinking() {
+  document.getElementById('thinking-row')?.remove();
+}
+
+/* ══════════════════════════════════════════════════════════════
+   SEND MESSAGE
+══════════════════════════════════════════════════════════════ */
+async function sendMessage(text) {
+  if (!text.trim()) return;
+
+  const chat = ensureChat();
+  const connectedToolIds = Object.values(state.tools).filter(t => t.connected).map(t => t.id);
+
+  // add to history
+  chat.history.push({ role: 'user', content: text });
+  appendUserBubble(text);
+  state.totalMsgs++;
+  $('stat-msgs').textContent = state.totalMsgs;
+
+  setSending(true);
+  appendThinking();
+
+  try {
+    const res = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        history: chat.history.filter(m => m.role !== 'system'),
+        active_tools: connectedToolIds,
+      }),
+    });
+
+    removeThinking();
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || `HTTP ${res.status}`);
+    }
+
+    const data = await res.json();
+    const reply = data.message || 'No response.';
+    const tools_used = data.tools_used || [];
+
+    chat.history.push({ role: 'assistant', content: reply, tools_used });
+    appendAssistantBubble(reply, tools_used);
+
+    state.totalCalls += tools_used.length;
+    state.totalMsgs++;
+    $('stat-calls').textContent = state.totalCalls;
+    $('stat-msgs').textContent = state.totalMsgs;
+
+    // Update sidebar preview
+    renderSidebar();
+    saveState();
+
+  } catch(err) {
+    removeThinking();
+    appendAssistantBubble(`⚠️ Error: ${err.message}`, []);
+    toast(err.message, 'error', 4000);
+  } finally {
+    setSending(false);
+  }
+}
+
+function setSending(on) {
+  $('send-btn').disabled = on;
+  $('chat-input').disabled = on;
+  if (!on) { $('chat-input').focus(); }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   EVENTS
+══════════════════════════════════════════════════════════════ */
+function bindChips() {
+  document.querySelectorAll('.chip[data-msg]').forEach(chip => {
+    chip.addEventListener('click', () => sendMessage(chip.dataset.msg));
+  });
+}
+
+$('send-btn').addEventListener('click', () => {
+  const text = $('chat-input').value.trim();
+  if (!text) return;
+  $('chat-input').value = '';
+  autoResize($('chat-input'));
+  $('send-btn').disabled = true;
+  sendMessage(text);
+});
+
+$('chat-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    $('send-btn').click();
+  }
+});
+
+$('chat-input').addEventListener('input', () => {
+  autoResize($('chat-input'));
+  $('send-btn').disabled = !$('chat-input').value.trim();
+});
+
+$('clear-btn').addEventListener('click', () => {
+  const chat = getActiveChat();
+  if (chat) {
+    chat.history = [];
+    saveState();
+    showWelcome();
+    toast('Chat cleared', 'info');
+  }
+});
+
+// New chat
+$('new-chat-btn').addEventListener('click', () => {
+  $('modal-name').value = '';
+  $('modal').classList.add('open');
+  setTimeout(() => $('modal-name').focus(), 100);
+});
+$('modal-cancel').addEventListener('click', () => $('modal').classList.remove('open'));
+$('modal').addEventListener('click', e => { if (e.target === $('modal')) $('modal').classList.remove('open'); });
+$('modal-create').addEventListener('click', () => {
+  const name = $('modal-name').value.trim() || ('Chat ' + (state.chats.length + 1));
+  $('modal').classList.remove('open');
+  createChat(name);
+  toast(`"${name}" created`, 'success');
+});
+$('modal-name').addEventListener('keydown', e => { if (e.key === 'Enter') $('modal-create').click(); });
+
+// Tool search
+$('tool-search').addEventListener('input', () => renderTools($('tool-search').value));
+
+/* ══════════════════════════════════════════════════════════════
+   INIT
+══════════════════════════════════════════════════════════════ */
+loadState();
+renderSidebar();
+renderTools();
+bindChips();
+
+if (state.activeChatId) {
+  const chat = getActiveChat();
+  if (chat) {
+    $('topbar-title').textContent = chat.name;
+    renderMessages();
+  }
+}
+
+// Check server health
+fetch('/api/health').then(r => {
+  if (!r.ok) throw new Error();
+  $('connection-badge').textContent = 'Connected';
+  $('connection-badge').style.background = 'var(--green-dim)';
+}).catch(() => {
+  $('connection-badge').textContent = 'Offline';
+  $('connection-badge').style.background = 'rgba(239,68,68,.12)';
+  $('connection-badge').style.color = 'var(--red)';
+  $('connection-badge').style.borderColor = 'rgba(239,68,68,.2)';
+});
+</script>
 </body>
 </html>
