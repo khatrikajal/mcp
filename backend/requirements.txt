@@ -1,0 +1,24 @@
+mcp==1.13.1
+groq
+python-dotenv
+requests
+uvicorn[standard]
+nylas
+
+# Backend API dependencies
+fastapi
+sqlalchemy
+alembic
+python-jose[cryptography]
+passlib[bcrypt]
+python-multipart
+pydantic
+pydantic-settings
+
+# Database
+psycopg2-binary
+
+# Planning and orchestration
+langgraph
+langchain
+langchain-groq
