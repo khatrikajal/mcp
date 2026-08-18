@@ -4,3 +4,22 @@ python-dotenv
 requests
 uvicorn[standard]
 nylas
+
+# Backend API dependencies
+fastapi
+sqlalchemy
+alembic
+python-jose[cryptography]
+passlib[bcrypt]
+python-multipart
+pydantic
+pydantic-settings
+
+# Database
+# For production: psycopg2-binary
+# For development: using SQLite (no extra dependency needed)
+
+# Planning and orchestration
+langgraph
+langchain
+langchain-groq
