@@ -1,7 +1,12 @@
 import { useState, useEffect, useCallback } from "react";
 import { api } from "../../services/api";
 import type { MeetingDelegation, DelegationStats } from "../../types";
+import { cn } from "../../lib/cn";
 import { Button } from "../ui/Button";
+import { Badge } from "../ui/Badge";
+import { Modal, ModalHeader, ModalBody, ModalFooter, ConfirmModal } from "../ui/Modal";
+import { DelegationCardSkeleton, StatCardSkeleton } from "../ui/Skeleton";
+import { toast } from "../ui/Toast";
 import { MeetingCard } from "./MeetingCard";
 import { DelegationReport } from "./DelegationReport";
 
@@ -15,10 +20,20 @@ export function DelegationDashboard() {
   const [activeTab, setActiveTab] = useState<FilterTab>("all");
   const [selectedReportId, setSelectedReportId] = useState<number | null>(null);
   const [processing, setProcessing] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
-  const loadData = useCallback(async () => {
+  // Confirmation modal state
+  const [confirmAction, setConfirmAction] = useState<{
+    type: "approve" | "reject";
+    delegationId: number;
+    title: string;
+  } | null>(null);
+  const [rejectReason, setRejectReason] = useState("");
+
+  const loadData = useCallback(async (showLoading = true) => {
     try {
-      setLoading(true);
+      if (showLoading) setLoading(true);
+      else setRefreshing(true);
       setError(null);
 
       // Load delegations based on active tab
@@ -45,46 +60,74 @@ export function DelegationDashboard() {
     } catch (err) {
       console.error("Failed to load delegations:", err);
       setError("Failed to load meeting delegations");
+      toast.error("Failed to load data", "Please try again");
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   }, [activeTab]);
 
   useEffect(() => {
     loadData();
     // Refresh every 30 seconds
-    const interval = setInterval(loadData, 30000);
+    const interval = setInterval(() => loadData(false), 30000);
     return () => clearInterval(interval);
   }, [loadData]);
 
   const handleApprove = async (id: number) => {
-    try {
-      await api.approveDelegation(id);
-      await loadData();
-    } catch (err) {
-      console.error("Failed to approve delegation:", err);
-      alert("Failed to approve delegation");
-    }
+    setConfirmAction({
+      type: "approve",
+      delegationId: id,
+      title: delegations.find((d) => d.id === id)?.meeting_title || "this meeting",
+    });
   };
 
   const handleReject = async (id: number) => {
-    const reason = prompt("Reason for rejection (optional):");
+    setConfirmAction({
+      type: "reject",
+      delegationId: id,
+      title: delegations.find((d) => d.id === id)?.meeting_title || "this meeting",
+    });
+    setRejectReason("");
+  };
+
+  const confirmApproval = async () => {
+    if (!confirmAction) return;
     try {
-      await api.rejectDelegation(id, reason || undefined);
-      await loadData();
+      await api.approveDelegation(confirmAction.delegationId);
+      toast.success("Delegation approved", "AI will join this meeting");
+      await loadData(false);
+    } catch (err) {
+      console.error("Failed to approve delegation:", err);
+      toast.error("Failed to approve", "Please try again");
+    } finally {
+      setConfirmAction(null);
+    }
+  };
+
+  const confirmRejection = async () => {
+    if (!confirmAction) return;
+    try {
+      await api.rejectDelegation(confirmAction.delegationId, rejectReason || undefined);
+      toast.success("Delegation rejected", "AI will not join this meeting");
+      await loadData(false);
     } catch (err) {
       console.error("Failed to reject delegation:", err);
-      alert("Failed to reject delegation");
+      toast.error("Failed to reject", "Please try again");
+    } finally {
+      setConfirmAction(null);
+      setRejectReason("");
     }
   };
 
   const handleJoinMeeting = async (id: number) => {
     try {
       await api.joinMeeting(id);
-      await loadData();
+      toast.success("Joining meeting", "AI is connecting to the meeting");
+      await loadData(false);
     } catch (err) {
       console.error("Failed to join meeting:", err);
-      alert("Failed to join meeting");
+      toast.error("Failed to join", "Could not connect to meeting");
     }
   };
 
@@ -92,106 +135,140 @@ export function DelegationDashboard() {
     try {
       setProcessing(true);
       const created = await api.processMeetings(24);
-      alert(`Processed ${created.length} upcoming meeting(s)`);
-      await loadData();
+      if (created.length > 0) {
+        toast.success(
+          `Found ${created.length} meeting(s)`,
+          "New delegations have been created"
+        );
+      } else {
+        toast.info("No new meetings", "Calendar is up to date");
+      }
+      await loadData(false);
     } catch (err) {
       console.error("Failed to process meetings:", err);
-      alert("Failed to process meetings");
+      toast.error("Failed to scan calendar", "Please try again");
     } finally {
       setProcessing(false);
     }
   };
 
   const tabs: { key: FilterTab; label: string; count?: number }[] = [
-    { key: "all", label: "All", count: stats?.total },
-    { key: "pending", label: "Pending", count: stats?.pending },
+    { key: "all", label: "All Meetings", count: stats?.total },
+    { key: "pending", label: "Needs Approval", count: stats?.pending },
     { key: "upcoming", label: "Upcoming" },
     { key: "completed", label: "Completed", count: stats?.completed },
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold">Meeting Delegations</h1>
-          <p className="text-muted-foreground">
-            AI-powered meeting attendance and reporting
+          <h1 className="text-3xl font-bold text-slate-900 dark:text-white">
+            Meeting Delegations
+          </h1>
+          <p className="mt-1 text-slate-600 dark:text-slate-400">
+            AI-powered meeting attendance, transcription, and reporting
           </p>
         </div>
-        <Button
-          onClick={handleProcessMeetings}
-          disabled={processing}
-          variant="outline"
-        >
-          {processing ? "Processing..." : "Scan Calendar"}
-        </Button>
+        <div className="flex items-center gap-3">
+          {refreshing && (
+            <span className="text-sm text-slate-500 animate-pulse">
+              Refreshing...
+            </span>
+          )}
+          <Button
+            onClick={handleProcessMeetings}
+            disabled={processing}
+            variant="outline"
+            className="gap-2"
+          >
+            {processing ? (
+              <>
+                <span className="animate-spin">⟳</span>
+                Scanning...
+              </>
+            ) : (
+              <>
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                Scan Calendar
+              </>
+            )}
+          </Button>
+        </div>
       </div>
 
       {/* Stats Cards */}
-      {stats && (
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-          <StatCard
-            label="Total"
-            value={stats.total}
-            icon="📅"
-          />
-          <StatCard
-            label="Pending"
-            value={stats.pending}
-            icon="⏳"
-            highlight={stats.pending > 0}
-          />
-          <StatCard
-            label="Approved"
-            value={stats.approved}
-            icon="✅"
-          />
-          <StatCard
-            label="Completed"
-            value={stats.completed}
-            icon="✓"
-          />
-          <StatCard
-            label="Failed"
-            value={stats.failed}
-            icon="❌"
-            danger={stats.failed > 0}
-          />
-        </div>
-      )}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+        {loading ? (
+          Array.from({ length: 5 }).map((_, i) => <StatCardSkeleton key={i} />)
+        ) : stats ? (
+          <>
+            <StatCard label="Total" value={stats.total} icon="📅" />
+            <StatCard
+              label="Pending"
+              value={stats.pending}
+              icon="⏳"
+              variant={stats.pending > 0 ? "warning" : "default"}
+            />
+            <StatCard label="Approved" value={stats.approved} icon="✅" variant="info" />
+            <StatCard label="Completed" value={stats.completed} icon="✓" variant="success" />
+            <StatCard
+              label="Failed"
+              value={stats.failed}
+              icon="❌"
+              variant={stats.failed > 0 ? "danger" : "default"}
+            />
+          </>
+        ) : null}
+      </div>
 
       {/* Tabs */}
-      <div className="flex gap-2 border-b">
-        {tabs.map((tab) => (
-          <button
-            key={tab.key}
-            onClick={() => setActiveTab(tab.key)}
-            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-              activeTab === tab.key
-                ? "border-primary text-primary"
-                : "border-transparent text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            {tab.label}
-            {tab.count !== undefined && (
-              <span className="ml-1 text-xs bg-muted px-1.5 py-0.5 rounded">
-                {tab.count}
-              </span>
-            )}
-          </button>
-        ))}
+      <div className="border-b dark:border-slate-700">
+        <nav className="flex gap-1 -mb-px" role="tablist">
+          {tabs.map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              role="tab"
+              aria-selected={activeTab === tab.key}
+              className={cn(
+                "px-4 py-3 text-sm font-medium border-b-2 transition-all",
+                activeTab === tab.key
+                  ? "border-blue-500 text-blue-600 dark:text-blue-400"
+                  : "border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:border-slate-300"
+              )}
+            >
+              {tab.label}
+              {tab.count !== undefined && (
+                <Badge
+                  variant={
+                    tab.key === "pending" && tab.count > 0
+                      ? "warning"
+                      : "default"
+                  }
+                  size="sm"
+                  className="ml-2"
+                >
+                  {tab.count}
+                </Badge>
+              )}
+            </button>
+          ))}
+        </nav>
       </div>
 
       {/* Content */}
       {loading ? (
-        <div className="flex items-center justify-center h-64">
-          <p className="text-muted-foreground">Loading delegations...</p>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <DelegationCardSkeleton key={i} />
+          ))}
         </div>
       ) : error ? (
-        <div className="p-4 bg-destructive/10 text-destructive rounded">
-          {error}
-        </div>
+        <ErrorState error={error} onRetry={() => loadData()} />
       ) : delegations.length === 0 ? (
         <EmptyState activeTab={activeTab} onScanCalendar={handleProcessMeetings} />
       ) : (
@@ -214,73 +291,161 @@ export function DelegationDashboard() {
         <DelegationReport
           delegationId={selectedReportId}
           onClose={() => setSelectedReportId(null)}
-          onSendReport={loadData}
+          onSendReport={() => loadData(false)}
         />
       )}
+
+      {/* Approve Confirmation Modal */}
+      <ConfirmModal
+        open={confirmAction?.type === "approve"}
+        onClose={() => setConfirmAction(null)}
+        onConfirm={confirmApproval}
+        title="Approve Delegation"
+        description={`Allow AI to join "${confirmAction?.title}"? The AI will record the meeting, take notes, and generate a summary report.`}
+        confirmText="Approve & Enable"
+        variant="info"
+      />
+
+      {/* Reject Modal with Reason */}
+      <Modal
+        open={confirmAction?.type === "reject"}
+        onClose={() => setConfirmAction(null)}
+        size="sm"
+      >
+        <ModalHeader onClose={() => setConfirmAction(null)}>
+          Reject Delegation
+        </ModalHeader>
+        <ModalBody>
+          <p className="text-slate-600 dark:text-slate-400 mb-4">
+            The AI will not join "{confirmAction?.title}". You can optionally
+            provide a reason.
+          </p>
+          <textarea
+            value={rejectReason}
+            onChange={(e) => setRejectReason(e.target.value)}
+            placeholder="Reason for rejection (optional)"
+            className="w-full px-3 py-2 border rounded-lg dark:border-slate-700 dark:bg-slate-800 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none resize-none"
+            rows={3}
+          />
+        </ModalBody>
+        <ModalFooter>
+          <Button variant="outline" onClick={() => setConfirmAction(null)}>
+            Cancel
+          </Button>
+          <Button onClick={confirmRejection}>
+            Reject Delegation
+          </Button>
+        </ModalFooter>
+      </Modal>
     </div>
   );
 }
 
+// Stat Card Component
 interface StatCardProps {
   label: string;
   value: number;
   icon: string;
-  highlight?: boolean;
-  danger?: boolean;
+  variant?: "default" | "success" | "warning" | "danger" | "info";
 }
 
-function StatCard({ label, value, icon, highlight, danger }: StatCardProps) {
-  let bgClass = "bg-card";
-  if (highlight) bgClass = "bg-yellow-50 dark:bg-yellow-900/20";
-  if (danger && value > 0) bgClass = "bg-red-50 dark:bg-red-900/20";
+function StatCard({ label, value, icon, variant = "default" }: StatCardProps) {
+  const variantStyles = {
+    default: "bg-white dark:bg-slate-800",
+    success: "bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800",
+    warning: "bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800",
+    danger: "bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800",
+    info: "bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800",
+  };
 
   return (
-    <div className={`${bgClass} border rounded-lg p-4`}>
+    <div
+      className={cn(
+        "rounded-xl border p-4 transition-shadow hover:shadow-md",
+        variantStyles[variant]
+      )}
+    >
       <div className="flex items-center gap-2 mb-1">
-        <span>{icon}</span>
-        <span className="text-sm text-muted-foreground">{label}</span>
+        <span className="text-lg">{icon}</span>
+        <span className="text-sm font-medium text-slate-600 dark:text-slate-400">
+          {label}
+        </span>
       </div>
-      <p className="text-2xl font-bold">{value}</p>
+      <p className="text-3xl font-bold text-slate-900 dark:text-white">{value}</p>
     </div>
   );
 }
 
+// Empty State Component
 interface EmptyStateProps {
   activeTab: FilterTab;
   onScanCalendar: () => void;
 }
 
 function EmptyState({ activeTab, onScanCalendar }: EmptyStateProps) {
-  const messages: Record<FilterTab, { title: string; description: string }> = {
+  const messages: Record<
+    FilterTab,
+    { icon: string; title: string; description: string; action?: boolean }
+  > = {
     all: {
+      icon: "📅",
       title: "No Meeting Delegations",
-      description: "Scan your calendar to find upcoming meetings for AI delegation.",
+      description:
+        "Scan your calendar to find upcoming meetings for AI delegation.",
+      action: true,
     },
     pending: {
-      title: "No Pending Approvals",
-      description: "All meeting delegations have been processed.",
+      icon: "✅",
+      title: "All Caught Up!",
+      description: "No meetings are waiting for your approval.",
     },
     upcoming: {
+      icon: "🕐",
       title: "No Upcoming Meetings",
       description: "No approved delegations for meetings starting soon.",
     },
     completed: {
+      icon: "📝",
       title: "No Completed Reports",
-      description: "Completed meeting reports will appear here.",
+      description: "Meeting reports will appear here after AI attends meetings.",
     },
   };
 
   const message = messages[activeTab];
 
   return (
-    <div className="flex flex-col items-center justify-center h-64 text-center">
-      <p className="text-lg text-muted-foreground mb-2">{message.title}</p>
-      <p className="text-sm text-muted-foreground mb-4">{message.description}</p>
-      {activeTab === "all" && (
-        <Button onClick={onScanCalendar}>
+    <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
+      <span className="text-6xl mb-4">{message.icon}</span>
+      <h3 className="text-xl font-semibold text-slate-900 dark:text-white mb-2">
+        {message.title}
+      </h3>
+      <p className="text-slate-600 dark:text-slate-400 max-w-md mb-6">
+        {message.description}
+      </p>
+      {message.action && (
+        <Button onClick={onScanCalendar} className="gap-2">
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
           Scan Calendar for Meetings
         </Button>
       )}
+    </div>
+  );
+}
+
+// Error State Component
+function ErrorState({ error, onRetry }: { error: string; onRetry: () => void }) {
+  return (
+    <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
+      <span className="text-6xl mb-4">⚠️</span>
+      <h3 className="text-xl font-semibold text-slate-900 dark:text-white mb-2">
+        Something went wrong
+      </h3>
+      <p className="text-slate-600 dark:text-slate-400 max-w-md mb-6">{error}</p>
+      <Button onClick={onRetry} variant="outline">
+        Try Again
+      </Button>
     </div>
   );
 }
