@@ -12,10 +12,8 @@ from typing import List, Optional
 import sys
 import os
 
-# Add client to path to import chat_service
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
-
-from client.chat_service import chat as mcp_chat
+# Import chat service from mcp module
+from backend.src.mcp.chat_service import chat as mcp_chat
 from backend.src.db.models import Agent, Message, AgentToolPermission, PermissionLevel
 
 

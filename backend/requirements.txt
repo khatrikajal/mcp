@@ -17,8 +17,18 @@ pydantic-settings
 
 # Database
 psycopg2-binary
+pgvector
 
 # Planning and orchestration
 langgraph
 langchain
 langchain-groq
+
+# Memory and embeddings
+sentence-transformers
+numpy
+redis
+apscheduler
+
+# Monitoring and observability
+psutil

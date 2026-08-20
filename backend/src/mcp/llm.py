@@ -1,6 +1,6 @@
 from groq import Groq
 
-from client.config import GROQ_API_KEY, MODEL_NAME
+from backend.src.mcp.client_config import GROQ_API_KEY, MODEL_NAME
 
 
 class GroqLLM:

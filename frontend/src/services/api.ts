@@ -25,6 +25,22 @@ import type {
   MeetingDelegation,
   DelegationReport,
   DelegationStats,
+  InterviewSession,
+  InterviewQuestion,
+  InterviewReport,
+  InterviewStats,
+  CreateInterviewRequest,
+  AgentMemory,
+  UserPreference,
+  ConversationSummary,
+  MemorySearchResult,
+  MemoryStats,
+  AgentContext,
+  CreateMemoryRequest,
+  CreatePreferenceRequest,
+  MemorySearchRequest,
+  MemoryType,
+  PreferenceCategory,
 } from "../types";
 import { tokenStorage } from "../lib/security";
 
@@ -462,6 +478,577 @@ class ApiClient {
 
   async deleteDelegation(delegationId: number): Promise<void> {
     await this.client.delete(`/delegations/${delegationId}`);
+  }
+
+  // ==========================================================================
+  // Interview endpoints
+  // ==========================================================================
+
+  async getInterviews(params?: {
+    status_filter?: string;
+    limit?: number;
+  }): Promise<InterviewSession[]> {
+    return this.requestWithRetry<InterviewSession[]>({
+      method: "GET",
+      url: "/interviews",
+      params,
+    });
+  }
+
+  async getUpcomingInterviews(hoursAhead: number = 24): Promise<InterviewSession[]> {
+    return this.requestWithRetry<InterviewSession[]>({
+      method: "GET",
+      url: "/interviews/upcoming",
+      params: { hours_ahead: hoursAhead },
+    });
+  }
+
+  async getInterviewStats(): Promise<InterviewStats> {
+    return this.requestWithRetry<InterviewStats>({
+      method: "GET",
+      url: "/interviews/stats",
+    });
+  }
+
+  async getInterview(interviewId: number): Promise<InterviewSession> {
+    return this.requestWithRetry<InterviewSession>({
+      method: "GET",
+      url: `/interviews/${interviewId}`,
+    });
+  }
+
+  async createInterview(data: CreateInterviewRequest): Promise<InterviewSession> {
+    const response = await this.client.post<InterviewSession>("/interviews", data);
+    return response.data;
+  }
+
+  async updateInterview(
+    interviewId: number,
+    data: Partial<CreateInterviewRequest>
+  ): Promise<InterviewSession> {
+    const response = await this.client.put<InterviewSession>(
+      `/interviews/${interviewId}`,
+      data
+    );
+    return response.data;
+  }
+
+  async cancelInterview(interviewId: number): Promise<void> {
+    await this.client.delete(`/interviews/${interviewId}`);
+  }
+
+  async generateQuestions(
+    interviewId: number,
+    numQuestions: number = 8
+  ): Promise<InterviewQuestion[]> {
+    const response = await this.client.post<InterviewQuestion[]>(
+      `/interviews/${interviewId}/generate-questions`,
+      { num_questions: numQuestions }
+    );
+    return response.data;
+  }
+
+  async getInterviewQuestions(interviewId: number): Promise<InterviewQuestion[]> {
+    return this.requestWithRetry<InterviewQuestion[]>({
+      method: "GET",
+      url: `/interviews/${interviewId}/questions`,
+    });
+  }
+
+  async startInterview(interviewId: number): Promise<{
+    status: string;
+    interview_id: number;
+    notetaker_id?: string;
+    intro_audio_duration: number;
+    question_audio_files: string[];
+    total_questions: number;
+  }> {
+    const response = await this.client.post(`/interviews/${interviewId}/start`);
+    return response.data;
+  }
+
+  async endInterview(interviewId: number): Promise<{
+    overall_score: number;
+    recommendation: string;
+    competency_scores: Record<string, number>;
+    strengths: string[];
+    weaknesses: string[];
+    report_summary?: string;
+  }> {
+    const response = await this.client.post(`/interviews/${interviewId}/end`);
+    return response.data;
+  }
+
+  async getInterviewReport(interviewId: number): Promise<InterviewReport> {
+    return this.requestWithRetry<InterviewReport>({
+      method: "GET",
+      url: `/interviews/${interviewId}/report`,
+    });
+  }
+
+  async sendInterviewReport(
+    interviewId: number,
+    recipients: string[]
+  ): Promise<{ status: string; recipients: string[]; sent_at: string }> {
+    const response = await this.client.post(
+      `/interviews/${interviewId}/send-report`,
+      recipients
+    );
+    return response.data;
+  }
+
+  async generateInterviewAudio(interviewId: number): Promise<{
+    status: string;
+    audio_files: string[];
+    count: number;
+  }> {
+    const response = await this.client.post(
+      `/interviews/${interviewId}/generate-audio`
+    );
+    return response.data;
+  }
+
+  // ==========================================================================
+  // Memory endpoints
+  // ==========================================================================
+
+  async createMemory(data: CreateMemoryRequest): Promise<AgentMemory> {
+    const response = await this.client.post<AgentMemory>("/memory", data);
+    return response.data;
+  }
+
+  async getAgentMemories(
+    agentId: number,
+    params?: {
+      memory_type?: MemoryType;
+      limit?: number;
+    }
+  ): Promise<AgentMemory[]> {
+    return this.requestWithRetry<AgentMemory[]>({
+      method: "GET",
+      url: `/memory/agent/${agentId}`,
+      params,
+    });
+  }
+
+  async getMemory(memoryId: number): Promise<AgentMemory> {
+    return this.requestWithRetry<AgentMemory>({
+      method: "GET",
+      url: `/memory/${memoryId}`,
+    });
+  }
+
+  async updateMemory(
+    memoryId: number,
+    data: {
+      content?: string;
+      summary?: string;
+      importance?: number;
+    }
+  ): Promise<AgentMemory> {
+    const response = await this.client.patch<AgentMemory>(
+      `/memory/${memoryId}`,
+      data
+    );
+    return response.data;
+  }
+
+  async deleteMemory(memoryId: number): Promise<void> {
+    await this.client.delete(`/memory/${memoryId}`);
+  }
+
+  async searchMemories(data: MemorySearchRequest): Promise<MemorySearchResult[]> {
+    const response = await this.client.post<MemorySearchResult[]>(
+      "/memory/search",
+      data
+    );
+    return response.data;
+  }
+
+  async getAgentContext(
+    agentId: number,
+    maxMemories: number = 10
+  ): Promise<AgentContext> {
+    return this.requestWithRetry<AgentContext>({
+      method: "GET",
+      url: `/memory/agent/${agentId}/context`,
+      params: { max_memories: maxMemories },
+    });
+  }
+
+  async getMemoryStats(agentId: number): Promise<MemoryStats> {
+    return this.requestWithRetry<MemoryStats>({
+      method: "GET",
+      url: `/memory/agent/${agentId}/stats`,
+    });
+  }
+
+  // Preferences
+  async createPreference(data: CreatePreferenceRequest): Promise<UserPreference> {
+    const response = await this.client.post<UserPreference>(
+      "/memory/preferences",
+      data
+    );
+    return response.data;
+  }
+
+  async getPreferences(params?: {
+    category?: PreferenceCategory;
+    min_confidence?: number;
+  }): Promise<UserPreference[]> {
+    return this.requestWithRetry<UserPreference[]>({
+      method: "GET",
+      url: "/memory/preferences",
+      params,
+    });
+  }
+
+  async deletePreference(preferenceId: number): Promise<void> {
+    await this.client.delete(`/memory/preferences/${preferenceId}`);
+  }
+
+  // Summarization
+  async summarizeConversation(
+    conversationId: number,
+    force: boolean = false
+  ): Promise<ConversationSummary> {
+    const response = await this.client.post<ConversationSummary>(
+      `/memory/conversations/${conversationId}/summarize`,
+      {},
+      { params: { force } }
+    );
+    return response.data;
+  }
+
+  async getConversationSummary(conversationId: number): Promise<ConversationSummary> {
+    return this.requestWithRetry<ConversationSummary>({
+      method: "GET",
+      url: `/memory/conversations/${conversationId}/summary`,
+    });
+  }
+
+  async getUserSummaries(params?: {
+    agent_id?: number;
+    limit?: number;
+  }): Promise<ConversationSummary[]> {
+    return this.requestWithRetry<ConversationSummary[]>({
+      method: "GET",
+      url: "/memory/summaries",
+      params,
+    });
+  }
+
+  async learnFromConversation(conversationId: number): Promise<{
+    conversation_id: number;
+    messages_processed: number;
+    preferences_extracted: Array<{ key: string; value: string }>;
+  }> {
+    const response = await this.client.post(
+      `/memory/learn/conversation/${conversationId}`
+    );
+    return response.data;
+  }
+
+  async cleanupExpiredMemories(): Promise<{ deleted_count: number }> {
+    const response = await this.client.post("/memory/cleanup/expired");
+    return response.data;
+  }
+
+  // ==========================================================================
+  // Analytics endpoints
+  // ==========================================================================
+
+  async getDashboardSummary(): Promise<{
+    total_agents: number;
+    total_conversations: number;
+    total_messages: number;
+    active_users_today: number;
+    pending_approvals: number;
+    meetings_this_week: number;
+    interviews_this_week: number;
+    security_alerts_24h: number;
+  }> {
+    return this.requestWithRetry({
+      method: "GET",
+      url: "/analytics/dashboard",
+    });
+  }
+
+  async getAnalyticsMetrics(params?: {
+    start_date?: string;
+    end_date?: string;
+  }): Promise<{
+    date_range: { start: string; end: string };
+    events_by_category: Record<string, number>;
+    active_users: number;
+    top_agents: Array<{ name: string; usage: number }>;
+  }> {
+    return this.requestWithRetry({
+      method: "GET",
+      url: "/analytics/metrics",
+      params,
+    });
+  }
+
+  async getDailyActivity(days: number = 30): Promise<
+    Array<{
+      date: string;
+      event_count: number;
+      unique_users: number;
+    }>
+  > {
+    return this.requestWithRetry({
+      method: "GET",
+      url: "/analytics/daily-activity",
+      params: { days },
+    });
+  }
+
+  async getToolUsageStats(days: number = 30): Promise<
+    Array<{
+      tool_name: string;
+      execution_count: number;
+      success_count: number;
+      success_rate: number;
+    }>
+  > {
+    return this.requestWithRetry({
+      method: "GET",
+      url: "/analytics/tool-usage",
+      params: { days },
+    });
+  }
+
+  async getSecurityAlerts(params?: {
+    hours?: number;
+    min_threat_level?: string;
+    limit?: number;
+  }): Promise<
+    Array<{
+      id: number;
+      event_type: string;
+      threat_level: string;
+      description?: string;
+      ip_address?: string;
+      user_id?: number;
+      created_at: string;
+    }>
+  > {
+    return this.requestWithRetry({
+      method: "GET",
+      url: "/analytics/security-alerts",
+      params,
+    });
+  }
+
+  async getFailedLoginPatterns(params?: {
+    hours?: number;
+    min_count?: number;
+  }): Promise<
+    Array<{
+      ip_address: string;
+      attempt_count: number;
+    }>
+  > {
+    return this.requestWithRetry({
+      method: "GET",
+      url: "/analytics/failed-logins",
+      params,
+    });
+  }
+
+  async getUserActivity(
+    userId: number,
+    params?: {
+      start_date?: string;
+      end_date?: string;
+      event_types?: string[];
+      limit?: number;
+    }
+  ): Promise<
+    Array<{
+      id: number;
+      event_type: string;
+      action: string;
+      resource_type?: string;
+      resource_id?: number;
+      description?: string;
+      ip_address?: string;
+      created_at: string;
+    }>
+  > {
+    return this.requestWithRetry({
+      method: "GET",
+      url: `/analytics/user-activity/${userId}`,
+      params,
+    });
+  }
+
+  async exportAnalytics(params?: {
+    start_date?: string;
+    end_date?: string;
+    format?: "json" | "csv";
+  }): Promise<unknown> {
+    return this.requestWithRetry({
+      method: "GET",
+      url: "/analytics/export",
+      params,
+    });
+  }
+
+  // ==========================================================================
+  // Security endpoints
+  // ==========================================================================
+
+  async checkPromptInjection(
+    text: string,
+    useLlm: boolean = true
+  ): Promise<{
+    is_injection: boolean;
+    threat_level: string;
+    detected_patterns: string[];
+  }> {
+    const response = await this.client.post("/security/check-prompt", {
+      text,
+      use_llm: useLlm,
+    });
+    return response.data;
+  }
+
+  async getRateLimitStatus(
+    action: string,
+    toolName?: string
+  ): Promise<{
+    action: string;
+    tool_name?: string;
+    limit: number;
+    current: number;
+    remaining: number;
+    is_allowed: boolean;
+  }> {
+    return this.requestWithRetry({
+      method: "GET",
+      url: "/security/rate-limit-status",
+      params: { action, tool_name: toolName },
+    });
+  }
+
+  async getPermissions(category?: string): Promise<
+    Array<{
+      id: number;
+      name: string;
+      description?: string;
+      category: string;
+    }>
+  > {
+    return this.requestWithRetry({
+      method: "GET",
+      url: "/security/permissions",
+      params: { category },
+    });
+  }
+
+  async getRoles(): Promise<
+    Array<{
+      id: number;
+      name: string;
+      description?: string;
+      is_system_role: boolean;
+      permission_count: number;
+      user_count: number;
+    }>
+  > {
+    return this.requestWithRetry({
+      method: "GET",
+      url: "/security/roles",
+    });
+  }
+
+  async createRole(data: {
+    name: string;
+    description?: string;
+    permission_names: string[];
+  }): Promise<{
+    id: number;
+    name: string;
+    description?: string;
+    is_system_role: boolean;
+    permission_count: number;
+    user_count: number;
+  }> {
+    const response = await this.client.post("/security/roles", data);
+    return response.data;
+  }
+
+  async updateRole(
+    roleId: number,
+    data: {
+      name?: string;
+      description?: string;
+      permission_names?: string[];
+    }
+  ): Promise<{
+    id: number;
+    name: string;
+    description?: string;
+    is_system_role: boolean;
+    permission_count: number;
+    user_count: number;
+  }> {
+    const response = await this.client.put(`/security/roles/${roleId}`, data);
+    return response.data;
+  }
+
+  async deleteRole(roleId: number): Promise<void> {
+    await this.client.delete(`/security/roles/${roleId}`);
+  }
+
+  async getUserPermissions(userId: number): Promise<{
+    user_id: number;
+    permissions: string[];
+    roles: string[];
+  }> {
+    return this.requestWithRetry({
+      method: "GET",
+      url: `/security/users/${userId}/permissions`,
+    });
+  }
+
+  async assignRoleToUser(
+    userId: number,
+    roleId: number
+  ): Promise<{
+    status: string;
+    user_id: number;
+    role_id: number;
+    created_at: string;
+  }> {
+    const response = await this.client.post(`/security/users/${userId}/roles`, {
+      role_id: roleId,
+    });
+    return response.data;
+  }
+
+  async removeRoleFromUser(userId: number, roleId: number): Promise<void> {
+    await this.client.delete(`/security/users/${userId}/roles/${roleId}`);
+  }
+
+  async getPermissionReport(): Promise<{
+    total_roles: number;
+    roles: Array<{
+      id: number;
+      name: string;
+      description?: string;
+      is_system_role: boolean;
+      user_count: number;
+      permission_count: number;
+      permissions: string[];
+    }>;
+  }> {
+    return this.requestWithRetry({
+      method: "GET",
+      url: "/security/permission-report",
+    });
   }
 }
 

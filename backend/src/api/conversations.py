@@ -139,6 +139,9 @@ def delete_conversation(
     """Delete a conversation and all its messages."""
     conversation = _verify_conversation_access(db, conversation_id, current_user.id)
 
+    # Delete related messages first (manual cascade for DB compatibility)
+    db.query(Message).filter(Message.conversation_id == conversation_id).delete()
+
     db.delete(conversation)
     db.commit()
 

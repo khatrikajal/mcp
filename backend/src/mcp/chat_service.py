@@ -21,10 +21,10 @@ import traceback
 from typing import Optional
 
 from mcp import ClientSession
-from mcp.client.streamable_http import streamablehttp_client
+from mcp.client.streamable_http import streamable_http_client
 
-from client.config import MCP_SERVER_URL
-from client.llm import GroqLLM
+from backend.src.mcp.client_config import MCP_SERVER_URL
+from backend.src.mcp.llm import GroqLLM
 
 
 SYSTEM_MESSAGE_TEMPLATE = """\
@@ -246,7 +246,7 @@ async def chat(history: list[dict], active_tools: Optional[list[str]] = None) ->
         # has already been discarded rather than silently re-surfaced later.
 
     try:
-        async with streamablehttp_client(MCP_SERVER_URL) as (
+        async with streamable_http_client(MCP_SERVER_URL) as (
             read_stream,
             write_stream,
             _,
@@ -410,7 +410,7 @@ async def confirm_action(tool_name: str, arguments: dict) -> dict:
         }
 
     try:
-        async with streamablehttp_client(MCP_SERVER_URL) as (
+        async with streamable_http_client(MCP_SERVER_URL) as (
             read_stream,
             write_stream,
             _,

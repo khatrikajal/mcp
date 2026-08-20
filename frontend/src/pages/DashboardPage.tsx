@@ -104,6 +104,21 @@ export function DashboardPage() {
               </p>
             </CardContent>
           </Card>
+
+          <Card className="cursor-pointer hover:bg-accent transition-colors" onClick={() => navigate("/analytics")}>
+            <CardHeader>
+              <CardTitle>Analytics</CardTitle>
+              <CardDescription>Security & performance metrics</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">
+                View organization metrics, security alerts, and tool usage
+              </p>
+              <Button className="mt-4 w-full" variant="outline">
+                View Analytics →
+              </Button>
+            </CardContent>
+          </Card>
         </div>
 
         <div className="mt-8">

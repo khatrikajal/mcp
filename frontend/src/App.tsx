@@ -5,6 +5,9 @@ import { DashboardPage } from "./pages/DashboardPage";
 import { ChatPage } from "./pages/ChatPage";
 import { ApprovalsPage } from "./pages/ApprovalsPage";
 import { DelegationsPage } from "./pages/DelegationsPage";
+import { InterviewsPage } from "./pages/InterviewsPage";
+import { MemoryPage } from "./pages/MemoryPage";
+import { AnalyticsPage } from "./pages/AnalyticsPage";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { useAuthStore } from "./stores/authStore";
 
@@ -54,6 +57,30 @@ function App() {
           element={
             <ProtectedRoute>
               <DelegationsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/interviews"
+          element={
+            <ProtectedRoute>
+              <InterviewsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/memory"
+          element={
+            <ProtectedRoute>
+              <MemoryPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/analytics"
+          element={
+            <ProtectedRoute>
+              <AnalyticsPage />
             </ProtectedRoute>
           }
         />

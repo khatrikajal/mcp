@@ -195,6 +195,230 @@ export interface DelegationStats {
   failed: number;
 }
 
+// Interview types
+export type InterviewType = "technical" | "behavioral" | "hr" | "mixed";
+export type InterviewStatus =
+  | "scheduled"
+  | "preparing"
+  | "ready"
+  | "in_progress"
+  | "analyzing"
+  | "completed"
+  | "cancelled"
+  | "failed";
+export type InterviewRecommendation =
+  | "strong_hire"
+  | "hire"
+  | "maybe"
+  | "no_hire"
+  | "strong_no_hire";
+
+export interface InterviewQuestion {
+  id: number;
+  question_number: number;
+  question_text: string;
+  question_type: InterviewType;
+  competency?: string;
+  difficulty: "easy" | "medium" | "hard";
+  weight: number;
+  candidate_answer?: string;
+  score?: number;
+  feedback?: string;
+  audio_generated: boolean;
+  audio_url?: string;
+}
+
+export interface InterviewSession {
+  id: number;
+  user_id: number;
+  organization_id: number;
+  candidate_name: string;
+  candidate_email: string;
+  candidate_phone?: string;
+  candidate_resume_url?: string;
+  candidate_linkedin?: string;
+  position_title: string;
+  position_description?: string;
+  required_skills: string[];
+  interview_type: InterviewType;
+  duration_minutes: number;
+  scheduled_time: string;
+  meeting_url?: string;
+  language: string;
+  status: InterviewStatus;
+  notetaker_id?: string;
+  overall_score?: number;
+  recommendation?: InterviewRecommendation;
+  strengths: string[];
+  weaknesses: string[];
+  competency_scores: Record<string, number>;
+  report_summary?: string;
+  report_sent: boolean;
+  created_at: string;
+  started_at?: string;
+  completed_at?: string;
+  questions_count: number;
+}
+
+export interface InterviewReport {
+  interview_id: number;
+  candidate_name: string;
+  position_title: string;
+  overall_score: number;
+  recommendation: InterviewRecommendation;
+  report: string;
+  report_summary: string;
+  questions: InterviewQuestion[];
+  strengths: string[];
+  weaknesses: string[];
+  competency_scores: Record<string, number>;
+  completed_at?: string;
+}
+
+export interface InterviewStats {
+  total: number;
+  scheduled: number;
+  ready: number;
+  in_progress: number;
+  completed: number;
+  cancelled: number;
+  average_score: number;
+  recommendations: Record<InterviewRecommendation, number>;
+}
+
+export interface CreateInterviewRequest {
+  candidate_name: string;
+  candidate_email: string;
+  candidate_phone?: string;
+  candidate_resume_url?: string;
+  candidate_linkedin?: string;
+  position_title: string;
+  position_description?: string;
+  required_skills: string[];
+  interview_type: InterviewType;
+  duration_minutes: number;
+  scheduled_time: string;
+  meeting_url?: string;
+  language?: string;
+}
+
+// Memory types
+export type MemoryType =
+  | "preference"
+  | "fact"
+  | "interaction"
+  | "summary"
+  | "meeting"
+  | "email"
+  | "context";
+
+export type PreferenceCategory =
+  | "scheduling"
+  | "communication"
+  | "workflow"
+  | "personal"
+  | "tool";
+
+export interface AgentMemory {
+  id: number;
+  agent_id: number;
+  user_id: number;
+  memory_type: MemoryType;
+  key: string;
+  content: string;
+  summary?: string;
+  source?: string;
+  source_id?: number;
+  importance: number;
+  access_count: number;
+  last_accessed?: string;
+  expires_at?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface UserPreference {
+  id: number;
+  user_id: number;
+  category: PreferenceCategory;
+  preference_key: string;
+  preference_value: string;
+  confidence: number;
+  source_type?: string;
+  times_confirmed: number;
+  times_contradicted: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ConversationSummary {
+  id: number;
+  conversation_id: number;
+  summary: string;
+  key_topics: string[];
+  key_entities: string[];
+  action_items: string[];
+  decisions: string[];
+  message_count: number;
+  time_range_start?: string;
+  time_range_end?: string;
+  created_at: string;
+}
+
+export interface MemorySearchResult {
+  memory: AgentMemory;
+  similarity: number;
+}
+
+export interface MemoryStats {
+  total_memories: number;
+  by_type: Record<MemoryType, number>;
+  average_importance: number;
+}
+
+export interface AgentContext {
+  memories: Array<{
+    type: string;
+    key: string;
+    content: string;
+    importance: number;
+  }>;
+  preferences: Array<{
+    category: string;
+    key: string;
+    value: string;
+    confidence: number;
+  }>;
+  recent_topics: string[];
+}
+
+export interface CreateMemoryRequest {
+  agent_id: number;
+  memory_type: MemoryType;
+  key: string;
+  content: string;
+  summary?: string;
+  source?: string;
+  source_id?: number;
+  importance?: number;
+  expires_in_hours?: number;
+}
+
+export interface CreatePreferenceRequest {
+  category: PreferenceCategory;
+  preference_key: string;
+  preference_value: string;
+}
+
+export interface MemorySearchRequest {
+  query: string;
+  agent_id: number;
+  memory_types?: MemoryType[];
+  top_k?: number;
+  threshold?: number;
+}
+
 // API Response types
 export interface ApiError {
   detail: string;

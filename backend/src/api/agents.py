@@ -9,7 +9,7 @@ from typing import List
 import logging
 
 from backend.src.db.connection import get_db
-from backend.src.db.models import User, Agent, AgentToolPermission
+from backend.src.db.models import User, Agent, AgentToolPermission, Conversation, Message
 from backend.src.api.schemas import AgentCreate, AgentUpdate, AgentResponse
 from backend.src.api.auth_utils import get_current_active_user
 from backend.src.core.database import ResourceFetcher
@@ -134,7 +134,7 @@ def delete_agent(
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
-    """Delete an agent."""
+    """Delete an agent and all related records."""
     fetcher = get_agent_fetcher(db)
 
     try:
@@ -147,6 +147,19 @@ def delete_agent(
         from fastapi import HTTPException
         raise HTTPException(status_code=e.status_code, detail=e.message)
 
+    # Delete related records in order (manual cascade for DB compatibility)
+    # 1. Delete messages from all agent's conversations
+    conversation_ids = [c.id for c in db.query(Conversation).filter(Conversation.agent_id == agent_id).all()]
+    if conversation_ids:
+        db.query(Message).filter(Message.conversation_id.in_(conversation_ids)).delete(synchronize_session=False)
+
+    # 2. Delete conversations
+    db.query(Conversation).filter(Conversation.agent_id == agent_id).delete(synchronize_session=False)
+
+    # 3. Delete tool permissions
+    db.query(AgentToolPermission).filter(AgentToolPermission.agent_id == agent_id).delete(synchronize_session=False)
+
+    # 4. Delete the agent
     db.delete(agent)
     db.commit()
 

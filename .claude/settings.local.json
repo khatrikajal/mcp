@@ -2,7 +2,16 @@
   "permissions": {
     "allow": [
       "Bash(npm install:*)",
-      "Bash(npm run build:*)"
+      "Bash(npm run build:*)",
+      "Bash(python:*)",
+      "Bash(pip install:*)",
+      "Bash(tasklist:*)",
+      "Bash(findstr:*)",
+      "Bash(taskkill:*)",
+      "Bash(curl:*)",
+      "Bash(PYTHONPATH=. timeout 5 python:*)",
+      "Bash(PYTHONPATH=. python:*)",
+      "Bash(npx tsc:*)"
     ]
   }
 }
